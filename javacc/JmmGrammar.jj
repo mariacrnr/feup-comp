@@ -1,0 +1,266 @@
+PARSER_PACKAGE=pt.up.fe.comp;
+PARSER_CLASS=JmmGrammarParser;
+SMART_NODE_CREATION=false;
+TOKENS_ARE_NODES=false;
+
+SKIP : " " | "\t" | "\r" | "\n"
+    | < MULTI_LINE_COMMENT : "/*" (~["*"])* "*" (~["*","/"] (~["*"])* "*" | "*")* "/" >
+    | < SINGLE_LINE_COMMENT : "//" (~["\n"])* >
+;
+
+TOKEN :
+        < IMPORT : "import" >
+        | <CLASS: "class" >
+        | <VOID: "void" >
+        | <MAIN: "main" >
+
+        | <EXTENDS: "extends" >
+        | <PUBLIC: "public" >
+        | <STATIC: "static" >
+        | <RETURN: "return" >
+        | <THIS: "this" >
+        | <NEW: "new" >
+
+	    | <INTEGERLITERAL: (<DIGIT>)+ >
+        | <DIGIT: ["0" - "9"] >
+
+        | <INT: "int" >
+        | <BOOLEAN: "boolean" >
+        | <STRING: "String" >
+
+        | <OPENBRACKET: "{" >
+        | <CLOSEBRACKET: "}" >
+        | <OPENPAREN: "(" >
+        | <CLOSEPAREN: ")" >
+        | <OPENARRAY: "[" >
+        | <CLOSEARRAY: "]" >
+        | <SEMICOLON: ";" >
+        | <COLON: ":" >
+        | <COMMA: "," >
+        | <DOT: "." >
+        | <LENGTH: "length" >
+
+        | <TRUE: "true" >
+        | <FALSE: "false" >
+        | <AND: "&&" >
+        | <LESS: "<" >
+        | <ADD: "+" >
+        | <SUB: "-" >
+        | <MULT: "*" >
+        | <DIV: "/" >
+        | <NOT: "!" >
+        | <EQUALS: "=" >
+
+        | <IF: "if" >
+        | <ELSE: "else" >
+        | <WHILE: "while" >
+
+        | <IDENTIFIER: (<LETTER> | <DOLLAR> | <UNDERSCORE> ) (<LETTER> | <DOLLAR> | <UNDERSCORE> | <DIGIT>)* >
+        | <LETTER: (<LOWERCASE> | <UPPERCASE>) >
+        | <LOWERCASE: ["a"-"z"] >
+        | <UPPERCASE: ["A"-"Z"] >
+        | <DOLLAR: "$" >
+        | <UNDERSCORE: "_" >
+;
+
+Program :
+    (ImportDeclaration)* ClassDeclaration <EOF> ;
+
+// Declarations
+
+ImportDeclaration :
+    <IMPORT> (<IDENTIFIER> ({jjtThis.put("name", lastConsumedToken.getImage()); }) #ID)
+    (<DOT> (<IDENTIFIER> ({jjtThis.put("name", lastConsumedToken.getImage()); }) #ID))* <SEMICOLON>
+;
+
+ClassDeclaration :
+    <CLASS> (<IDENTIFIER> ({jjtThis.put("name", lastConsumedToken.getImage()); }) #ID)
+    (<EXTENDS> (<IDENTIFIER> ({jjtThis.put("name", lastConsumedToken.getImage()); }) #ID) #InheritanceDeclaration)?
+    <OPENBRACKET>
+        (VarDeclaration)*
+        (MethodDeclaration)*
+    <CLOSEBRACKET>
+;
+
+VarDeclaration :
+    Type <IDENTIFIER> ({jjtThis.put("name", lastConsumedToken.getImage()); }) #ID<SEMICOLON>
+;
+
+MethodDeclaration #void:
+    <PUBLIC> (InstanceMethod | MainMethod)
+;
+
+InstanceMethod:
+    InstanceMethodHeader
+    <OPENPAREN> InstanceMethodArguments <CLOSEPAREN>
+    <OPENBRACKET> MethodBody ReturnExpression <CLOSEBRACKET>
+;
+
+MainMethod:
+    MainMethodHeader
+    <OPENPAREN> MainMethodArguments <CLOSEPAREN>
+    <OPENBRACKET> MethodBody <CLOSEBRACKET>
+;
+
+InstanceMethodHeader :
+     Type <IDENTIFIER> ({jjtThis.put("name", lastConsumedToken.getImage()); }) #ID
+;
+
+MainMethodHeader :
+    <STATIC> <VOID> <MAIN>
+;
+
+InstanceMethodArguments :
+    ((Type <IDENTIFIER> ({jjtThis.put("name", lastConsumedToken.getImage()); }) #ID)
+    (<COMMA> Type <IDENTIFIER>({jjtThis.put("name", lastConsumedToken.getImage()); }) #ID)* )?
+;
+
+MainMethodArguments :
+    <STRING> <OPENARRAY> <CLOSEARRAY> <IDENTIFIER> ({jjtThis.put("name", lastConsumedToken.getImage()); })
+;
+
+MethodBody :
+    (SCAN 2 VarDeclaration)* (Statement)*
+;
+
+ReturnExpression :
+    <RETURN> Expression <SEMICOLON>
+;
+
+Type :
+    <INT> ({jjtThis.put("type", "int" );}) (<OPENARRAY> <CLOSEARRAY> ({jjtThis.put("type", "intArray"); }))?
+    | <BOOLEAN> ({jjtThis.put("type", "boolean"); })
+    | <STRING> ({jjtThis.put("type", "String"); })
+    | <IDENTIFIER> ({jjtThis.put("type", lastConsumedToken.getImage()); })
+;
+
+// Statements
+
+Statement:
+    ScopeStatement
+    | IfStatement
+    | WhileStatement
+    | (SCAN 2 AssignmentExpression | Expression <SEMICOLON>)
+;
+
+ScopeStatement :
+    <OPENBRACKET> (Statement)* <CLOSEBRACKET>
+;
+
+IfStatement :
+    <IF> ParenthesisExpression #IfCondition Statement #IfBody <ELSE> Statement #_Else
+;
+
+WhileStatement:
+    <WHILE> ParenthesisExpression #WhileCondition Statement #WhileBody
+;
+
+AssignmentExpression #void:
+    (<IDENTIFIER> ({jjtThis.put("name", lastConsumedToken.getImage()); }) #ID)
+    (IdAssignmentExpression | ArrayAssignmentExpression) <SEMICOLON>
+;
+
+IdAssignmentExpression #void:
+     <EQUALS> Expression #IDAssignment(2)
+;
+
+ArrayAssignmentExpression #void:
+    (ArrayExpression #ArrayExpression) <EQUALS> Expression #ArrayAssignment(3)
+;
+
+// Expressions
+
+Expression #void:
+    AndExpression
+;
+
+AndExpression #void:
+    LessExpression ((<AND> LessExpression) ({jjtThis.put("op", "And"); }) #BinOp(2))*
+;
+
+LessExpression #void:
+    AddSubExpression ((<LESS> AddSubExpression) ({jjtThis.put("op", "Less"); }) #BinOp(2))*
+;
+
+AddSubExpression #void:
+    MultDivExpression ((<ADD> MultDivExpression) ({jjtThis.put("op", "Add"); }) #BinOp(2)
+    | (<SUB> MultDivExpression) ({jjtThis.put("op", "Sub"); }) #BinOp(2))*
+;
+
+MultDivExpression #void:
+    NotExpression ((<MULT> NotExpression) ({jjtThis.put("op", "Mult"); }) #BinOp(2)
+     | (<DIV> NotExpression) ({jjtThis.put("op", "Div"); }) #BinOp(2))*
+;
+
+NotExpression #void:
+    (<NOT> NotExpression) ({jjtThis.put("op", "Not"); }) #UnaryOp(1)
+    | RecursiveArrayExpression
+;
+
+RecursiveArrayExpression #void:
+    FinalTerms (ArrayExpression #ArrayExpression(2) | AccessExpression )*
+;
+
+ArrayExpression #void:
+    <OPENARRAY> Expression <CLOSEARRAY>
+;
+
+AccessExpression #void:
+    <DOT> ( (<LENGTH> ({jjtThis.put("type", "Length"); }) #AccessExpression(1))
+    | ((CallExpression) ({jjtThis.put("type", "Call"); }) #AccessExpression(2)) )
+;
+
+CallExpression :
+    (<IDENTIFIER> ({jjtThis.put("name", lastConsumedToken.getImage()); }) #ID)
+    <OPENPAREN> ((Expression (<COMMA> Expression)*)? #MemberArgs) <CLOSEPAREN>
+;
+
+FinalTerms #void:
+    <INTEGERLITERAL> ({jjtThis.put("value", lastConsumedToken.getImage()); }{jjtThis.put("type", "int"); }) #Literal
+    | <TRUE> ({jjtThis.put("value", lastConsumedToken.getImage()); }{jjtThis.put("type", "boolean"); }) #Literal
+    | <FALSE> ({jjtThis.put("value", lastConsumedToken.getImage()); }{jjtThis.put("type", "boolean"); }) #Literal
+    | <IDENTIFIER> ({jjtThis.put("name", lastConsumedToken.getImage()); }) #ID
+    | <THIS> ({jjtThis.put("value", "this"); }{jjtThis.put("type", "Object"); }) #Literal
+    | NewExpression
+    | ParenthesisExpression
+;
+
+NewExpression #void:
+    <NEW> (
+    (<INT> ArrayExpression {jjtThis.put("type", "intArray");}) #_New
+    | ( ( (<IDENTIFIER> ({jjtThis.put("type", lastConsumedToken.getImage()); }) #ID) <OPENPAREN> <CLOSEPAREN>)
+            ({jjtThis.put("type", "Class");})) #_New
+    )
+;
+
+ParenthesisExpression :
+    <OPENPAREN> Expression <CLOSEPAREN>
+;
+
+// Injections for the implementation of JmmNode
+// Since this is injected into BaseNode, it affects only non-terminals
+INJECT BaseNode :
+        import pt.up.fe.comp.jmm.ast.JmmNode;
+        import pt.up.fe.comp.jmm.ast.AJmmNode;
+        import pt.up.fe.specs.util.SpecsCollections;
+        extends AJmmNode
+{
+    @Override
+    public List<JmmNode> getChildren() {
+
+        return SpecsCollections.cast(children(), JmmNode.class);
+    }
+
+    @Override
+    public void add(JmmNode child, int index) {
+
+        if (child instanceof Node) {
+
+            addChild(index, (Node) child);
+        } else {
+
+            throw new RuntimeException("Node " + child + " is not a Node.");
+        }
+
+    }
+}

@@ -1,0 +1,14 @@
+/bin/
+.gradle/
+/build/
+/.settings/
+/generated/
+/run/
+.idea/
+gradle/
+gradlew
+gradlew.bat
+
+# Class files
+**/*.class
+!libs-jmm/**/*.class
